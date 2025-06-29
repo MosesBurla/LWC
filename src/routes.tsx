@@ -9,6 +9,7 @@ import Posts from './pages/Posts'
 import Devotionals from './pages/Devotionals'
 import PrayerRequests from './pages/PrayerRequests'
 import AdminDashboard from './pages/AdminDashboard'
+import AdminSetup from './pages/AdminSetup'
 import Profile from './pages/Profile'
 import { ProtectedRoute } from './components/ui/ProtectedRoute'
 
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
   {
     path: '/registration',
     element: <Registration />,
+  },
+  {
+    path: '/admin-setup',
+    element: <AdminSetup />,
   },
   {
     path: '/groups',
