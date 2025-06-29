@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Cross, Menu, X, ChevronDown } from 'lucide-react';
+import { Cross, Menu, X, ChevronDown, Shield } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { user } = useAuthStore();
 
   return (
     <header className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-100 sticky top-0 z-50">
@@ -36,6 +38,17 @@ function Header() {
               Prayer
             </Link>
             
+            {/* Admin Link - Only show for admin users */}
+            {user?.role === 'admin' && (
+              <Link 
+                to="/admin" 
+                className="flex items-center space-x-1 text-red-600 hover:text-red-700 transition-colors font-medium bg-red-50 px-3 py-1 rounded-lg"
+              >
+                <Shield className="w-4 h-4" />
+                <span>Admin</span>
+              </Link>
+            )}
+            
             {/* Dropdown */}
             <div className="relative">
               <button
@@ -54,9 +67,11 @@ function Header() {
                   <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                     My Profile
                   </Link>
-                  <Link to="/admin" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600">
-                    Admin Dashboard
-                  </Link>
+                  {user?.role !== 'admin' && (
+                    <Link to="/admin" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                      Admin Dashboard
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -97,6 +112,12 @@ function Header() {
               <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                 My Profile
               </Link>
+              {user?.role === 'admin' && (
+                <Link to="/admin" className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors font-medium py-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Admin Dashboard</span>
+                </Link>
+              )}
               <Link to="/registration" className="btn-primary mt-4">
                 Join Community
               </Link>

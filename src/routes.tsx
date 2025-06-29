@@ -71,11 +71,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin',
-    element: (
-      <ProtectedRoute requireAdmin>
-        <AdminDashboard />
-      </ProtectedRoute>
-    ),
+    element: <AdminDashboard />,
   },
   {
     path: '/profile',
