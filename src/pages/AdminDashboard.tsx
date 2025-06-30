@@ -159,10 +159,16 @@ function AdminDashboard() {
                 <div className="text-xs text-gray-500 -mt-1">Admin Dashboard</div>
               </div>
             </Link>
-            <Link to="/" className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Home</span>
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link to="/admin-setup" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors">
+                <Settings className="w-4 h-4" />
+                <span>Setup</span>
+              </Link>
+              <Link to="/" className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Home</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -177,6 +183,20 @@ function AdminDashboard() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600">Manage your community platform</p>
+            </div>
+          </div>
+          
+          {/* Quick Access Notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start space-x-3">
+              <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-blue-900 font-medium">Admin Access</h3>
+                <p className="text-blue-700 text-sm mt-1">
+                  This is a demo admin dashboard. In production, access would be restricted to admin users only.
+                  Visit <Link to="/admin-setup" className="underline hover:text-blue-800">Admin Setup</Link> to create an admin account.
+                </p>
+              </div>
             </div>
           </div>
         </div>

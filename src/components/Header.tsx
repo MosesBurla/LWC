@@ -38,16 +38,14 @@ function Header() {
               Prayer
             </Link>
             
-            {/* Admin Link - Only show for admin users */}
-            {user?.role === 'admin' && (
-              <Link 
-                to="/admin" 
-                className="flex items-center space-x-1 text-red-600 hover:text-red-700 transition-colors font-medium bg-red-50 px-3 py-1 rounded-lg"
-              >
-                <Shield className="w-4 h-4" />
-                <span>Admin</span>
-              </Link>
-            )}
+            {/* Admin Link - Show for all users, let the page handle access control */}
+            <Link 
+              to="/admin" 
+              className="flex items-center space-x-1 text-red-600 hover:text-red-700 transition-colors font-medium bg-red-50 px-3 py-1 rounded-lg"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Admin</span>
+            </Link>
             
             {/* Dropdown */}
             <div className="relative">
@@ -67,18 +65,33 @@ function Header() {
                   <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600">
                     My Profile
                   </Link>
-                  {user?.role !== 'admin' && (
-                    <Link to="/admin" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600">
-                      Admin Dashboard
-                    </Link>
-                  )}
+                  <Link to="/admin-setup" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+                    Admin Setup
+                  </Link>
                 </div>
               )}
             </div>
             
-            <Link to="/registration" className="btn-primary">
-              Join Community
-            </Link>
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">Welcome, {user.full_name}</span>
+                <button 
+                  onClick={() => useAuthStore.getState().signOut()}
+                  className="btn-secondary text-sm"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <Link to="/login" className="btn-secondary">
+                  Sign In
+                </Link>
+                <Link to="/registration" className="btn-primary">
+                  Join Community
+                </Link>
+              </div>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -112,15 +125,30 @@ function Header() {
               <Link to="/profile" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                 My Profile
               </Link>
-              {user?.role === 'admin' && (
-                <Link to="/admin" className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors font-medium py-2">
-                  <Shield className="w-4 h-4" />
-                  <span>Admin Dashboard</span>
-                </Link>
-              )}
-              <Link to="/registration" className="btn-primary mt-4">
-                Join Community
+              <Link to="/admin" className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors font-medium py-2">
+                <Shield className="w-4 h-4" />
+                <span>Admin Dashboard</span>
               </Link>
+              <Link to="/admin-setup" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                Admin Setup
+              </Link>
+              {user ? (
+                <button 
+                  onClick={() => useAuthStore.getState().signOut()}
+                  className="btn-secondary mt-4 text-left"
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <div className="flex flex-col space-y-2 mt-4">
+                  <Link to="/login" className="btn-secondary">
+                    Sign In
+                  </Link>
+                  <Link to="/registration" className="btn-primary">
+                    Join Community
+                  </Link>
+                </div>
+              )}
             </nav>
           </div>
         )}
