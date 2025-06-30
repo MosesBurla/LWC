@@ -48,6 +48,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         if (!profile) {
+          // Check if a profile exists with this email but different ID
+          const { data: existingProfile, error: existingError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', data.user.email || email)
+            .maybeSingle()
+
+          if (existingError) {
+            console.error('Existing profile check error:', existingError)
+            throw new Error('Failed to check existing profile')
+          }
+
+          if (existingProfile) {
+            // Update the existing profile's ID to match the authenticated user
+            const { data: updatedProfile, error: updateError } = await supabase
+              .from('users')
+              .update({ id: data.user.id })
+              .eq('email', data.user.email || email)
+              .select()
+              .single()
+
+            if (updateError) {
+              console.error('Profile update error:', updateError)
+              throw new Error('Failed to update user profile')
+            }
+
+            if (updatedProfile.status !== 'approved') {
+              await supabase.auth.signOut()
+              throw new Error('Account pending approval')
+            }
+
+            set({ user: updatedProfile })
+            toast.success(`Welcome back, ${updatedProfile.full_name}!`)
+            return
+          }
+
           // If no profile exists, create one from auth data
           const { data: newProfile, error: createError } = await supabase
             .from('users')
@@ -208,7 +244,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (profile) {
           set({ user: profile })
         } else {
-          // Create profile if it doesn't exist
+          // Check if a profile exists with this email but different ID
+          const { data: existingProfile, error: existingError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', session.user.email || '')
+            .maybeSingle()
+
+          if (existingError) {
+            console.error('Existing profile check error:', existingError)
+          } else if (existingProfile) {
+            // Update the existing profile's ID to match the authenticated user
+            const { data: updatedProfile, error: updateError } = await supabase
+              .from('users')
+              .update({ id: session.user.id })
+              .eq('email', session.user.email || '')
+              .select()
+              .single()
+
+            if (updateError) {
+              console.error('Profile update error:', updateError)
+            } else {
+              set({ user: updatedProfile })
+              return
+            }
+          }
+
+          // Create profile if it doesn't exist and no existing profile was found
           const { data: newProfile, error: createError } = await supabase
             .from('users')
             .insert({
