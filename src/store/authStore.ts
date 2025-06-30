@@ -21,6 +21,35 @@ interface AuthState {
   checkAuth: () => Promise<void>
 }
 
+// Helper function to sync user profile with auth user
+const syncUserProfile = async (authUser: any, additionalData?: Partial<User>): Promise<User> => {
+  const userData = {
+    id: authUser.id,
+    email: authUser.email,
+    full_name: authUser.user_metadata?.full_name || additionalData?.full_name || 'User',
+    role: 'member' as const,
+    status: 'approved' as const,
+    ...additionalData
+  }
+
+  // Use upsert to handle both insert and update scenarios
+  const { data: profile, error } = await supabase
+    .from('users')
+    .upsert(userData, {
+      onConflict: 'email',
+      ignoreDuplicates: false
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Profile sync error:', error)
+    throw new Error('Failed to sync user profile')
+  }
+
+  return profile
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
@@ -35,77 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error
 
       if (data.user) {
-        // Fetch user profile with better error handling
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle() // Use maybeSingle instead of single to handle no results gracefully
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError)
-          throw new Error('Failed to load user profile')
-        }
-
-        if (!profile) {
-          // Check if a profile exists with this email but different ID
-          const { data: existingProfile, error: existingError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', data.user.email || email)
-            .maybeSingle()
-
-          if (existingError) {
-            console.error('Existing profile check error:', existingError)
-            throw new Error('Failed to check existing profile')
-          }
-
-          if (existingProfile) {
-            // Update the existing profile's ID to match the authenticated user
-            const { data: updatedProfile, error: updateError } = await supabase
-              .from('users')
-              .update({ id: data.user.id })
-              .eq('email', data.user.email || email)
-              .select()
-              .single()
-
-            if (updateError) {
-              console.error('Profile update error:', updateError)
-              throw new Error('Failed to update user profile')
-            }
-
-            if (updatedProfile.status !== 'approved') {
-              await supabase.auth.signOut()
-              throw new Error('Account pending approval')
-            }
-
-            set({ user: updatedProfile })
-            toast.success(`Welcome back, ${updatedProfile.full_name}!`)
-            return
-          }
-
-          // If no profile exists, create one from auth data
-          const { data: newProfile, error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              email: data.user.email || email,
-              full_name: data.user.user_metadata?.full_name || 'User',
-              role: 'member',
-              status: 'approved' // Auto-approve for demo purposes
-            })
-            .select()
-            .single()
-
-          if (createError) {
-            console.error('Profile creation error:', createError)
-            throw new Error('Failed to create user profile')
-          }
-
-          set({ user: newProfile })
-          toast.success(`Welcome, ${newProfile.full_name}!`)
-          return
-        }
+        const profile = await syncUserProfile(data.user)
 
         if (profile.status !== 'approved') {
           await supabase.auth.signOut()
@@ -136,25 +95,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error
 
       if (data.user) {
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: userData.email,
-            full_name: userData.full_name,
-            phone: userData.phone,
-            location: userData.location,
-            reason_for_joining: userData.reason_for_joining,
-            faith_journey: userData.faith_journey,
-            role: 'member',
-            status: 'approved' // Auto-approve for demo purposes
-          })
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError)
-          throw profileError
-        }
+        await syncUserProfile(data.user, {
+          full_name: userData.full_name,
+          phone: userData.phone,
+          location: userData.location,
+          reason_for_joining: userData.reason_for_joining,
+          faith_journey: userData.faith_journey
+        })
 
         toast.success('Registration successful! You can now sign in.')
       }
@@ -230,65 +177,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session } } = await supabase.auth.getSession()
       
       if (session?.user) {
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle()
-
-        if (error) {
-          console.error('Auth check error:', error)
-          throw error
-        }
-
-        if (profile) {
-          set({ user: profile })
-        } else {
-          // Check if a profile exists with this email but different ID
-          const { data: existingProfile, error: existingError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', session.user.email || '')
-            .maybeSingle()
-
-          if (existingError) {
-            console.error('Existing profile check error:', existingError)
-          } else if (existingProfile) {
-            // Update the existing profile's ID to match the authenticated user
-            const { data: updatedProfile, error: updateError } = await supabase
-              .from('users')
-              .update({ id: session.user.id })
-              .eq('email', session.user.email || '')
-              .select()
-              .single()
-
-            if (updateError) {
-              console.error('Profile update error:', updateError)
-            } else {
-              set({ user: updatedProfile })
-              return
-            }
-          }
-
-          // Create profile if it doesn't exist and no existing profile was found
-          const { data: newProfile, error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: session.user.id,
-              email: session.user.email || '',
-              full_name: session.user.user_metadata?.full_name || 'User',
-              role: 'member',
-              status: 'approved'
-            })
-            .select()
-            .single()
-
-          if (createError) {
-            console.error('Profile creation error:', createError)
-          } else {
-            set({ user: newProfile })
-          }
-        }
+        const profile = await syncUserProfile(session.user)
+        set({ user: profile })
       }
     } catch (error) {
       console.error('Auth check failed:', error)
