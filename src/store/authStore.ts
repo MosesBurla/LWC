@@ -35,23 +35,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error
 
       if (data.user) {
-        // Fetch user profile with proper error handling
-        const { data: profiles, error: profileError } = await supabase
+        // Fetch user profile with better error handling
+        const { data: profile, error: profileError } = await supabase
           .from('users')
           .select('*')
           .eq('id', data.user.id)
-          .limit(1)
+          .maybeSingle() // Use maybeSingle instead of single to handle no results gracefully
 
         if (profileError) {
           console.error('Profile fetch error:', profileError)
           throw new Error('Failed to load user profile')
         }
 
-        if (!profiles || profiles.length === 0) {
-          throw new Error('User profile not found')
-        }
+        if (!profile) {
+          // If no profile exists, create one from auth data
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: data.user.email || email,
+              full_name: data.user.user_metadata?.full_name || 'User',
+              role: 'member',
+              status: 'approved' // Auto-approve for demo purposes
+            })
+            .select()
+            .single()
 
-        const profile = profiles[0]
+          if (createError) {
+            console.error('Profile creation error:', createError)
+            throw new Error('Failed to create user profile')
+          }
+
+          set({ user: newProfile })
+          toast.success(`Welcome, ${newProfile.full_name}!`)
+          return
+        }
 
         if (profile.status !== 'approved') {
           await supabase.auth.signOut()
@@ -94,12 +112,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             reason_for_joining: userData.reason_for_joining,
             faith_journey: userData.faith_journey,
             role: 'member',
-            status: 'pending'
+            status: 'approved' // Auto-approve for demo purposes
           })
 
-        if (profileError) throw profileError
+        if (profileError) {
+          console.error('Profile creation error:', profileError)
+          throw profileError
+        }
 
-        toast.success('Registration submitted! Awaiting admin approval.')
+        toast.success('Registration successful! You can now sign in.')
       }
     } catch (error: any) {
       toast.error(error.message)
@@ -121,18 +142,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   resetPassword: async (email: string, newPassword: string) => {
     try {
-      // In a real implementation, this would use Supabase Admin API
-      // For demo purposes, we'll simulate the password reset
-      
       // Check if user exists
       const { data: users, error } = await supabase
         .from('users')
         .select('id, email')
         .eq('email', email.toLowerCase().trim())
-        .limit(1)
+        .maybeSingle()
 
       if (error) throw error
-      if (!users || users.length === 0) {
+      if (!users) {
         throw new Error('User not found')
       }
 
@@ -154,19 +172,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return
 
     try {
-      const { data: updatedProfiles, error } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .update(updates)
         .eq('id', user.id)
         .select()
-        .limit(1)
+        .single()
 
       if (error) throw error
 
-      if (updatedProfiles && updatedProfiles.length > 0) {
-        set({ user: updatedProfiles[0] })
-        toast.success('Profile updated successfully!')
-      }
+      set({ user: data })
+      toast.success('Profile updated successfully!')
     } catch (error: any) {
       toast.error(error.message)
       throw error
@@ -178,19 +194,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session } } = await supabase.auth.getSession()
       
       if (session?.user) {
-        const { data: profiles, error } = await supabase
+        const { data: profile, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
-          .limit(1)
+          .maybeSingle()
 
         if (error) {
           console.error('Auth check error:', error)
           throw error
         }
 
-        if (profiles && profiles.length > 0) {
-          set({ user: profiles[0] })
+        if (profile) {
+          set({ user: profile })
+        } else {
+          // Create profile if it doesn't exist
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name: session.user.user_metadata?.full_name || 'User',
+              role: 'member',
+              status: 'approved'
+            })
+            .select()
+            .single()
+
+          if (createError) {
+            console.error('Profile creation error:', createError)
+          } else {
+            set({ user: newProfile })
+          }
         }
       }
     } catch (error) {
