@@ -34,14 +34,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error
 
       if (data.user) {
-        // Fetch user profile
-        const { data: profile, error: profileError } = await supabase
+        // Fetch user profile with proper error handling
+        const { data: profiles, error: profileError } = await supabase
           .from('users')
           .select('*')
           .eq('id', data.user.id)
-          .single()
+          .limit(1)
 
-        if (profileError) throw profileError
+        if (profileError) {
+          console.error('Profile fetch error:', profileError)
+          throw new Error('Failed to load user profile')
+        }
+
+        if (!profiles || profiles.length === 0) {
+          throw new Error('User profile not found')
+        }
+
+        const profile = profiles[0]
 
         if (profile.status !== 'approved') {
           await supabase.auth.signOut()
@@ -114,17 +123,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return
 
     try {
-      const { data, error } = await supabase
+      const { data: updatedProfiles, error } = await supabase
         .from('users')
         .update(updates)
         .eq('id', user.id)
         .select()
-        .single()
+        .limit(1)
 
       if (error) throw error
 
-      set({ user: data })
-      toast.success('Profile updated successfully!')
+      if (updatedProfiles && updatedProfiles.length > 0) {
+        set({ user: updatedProfiles[0] })
+        toast.success('Profile updated successfully!')
+      }
     } catch (error: any) {
       toast.error(error.message)
       throw error
@@ -136,17 +147,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session } } = await supabase.auth.getSession()
       
       if (session?.user) {
-        const { data: profile, error } = await supabase
+        const { data: profiles, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
-          .single()
+          .limit(1)
 
-        if (error) throw error
-        set({ user: profile })
+        if (error) {
+          console.error('Auth check error:', error)
+          throw error
+        }
+
+        if (profiles && profiles.length > 0) {
+          set({ user: profiles[0] })
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      // Don't throw error here to prevent app crashes
     } finally {
       set({ loading: false })
     }
